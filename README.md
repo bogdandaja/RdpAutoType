@@ -1,5 +1,10 @@
 # RdpAutoType
 
+**Tired of copy‑pasting passwords and alt‑tabbing between KeePass and whatever
+you're signing into?** RdpAutoType types them for you — in ordinary windows
+**and** in the awkward ones (nested RDP, remote consoles) where normal
+auto‑type simply gives up.
+
 A KeePass 2.x plugin that types your credentials **through nested RDP sessions
 and remote consoles** — places where KeePass's built‑in auto‑type and most
 password managers fail.
