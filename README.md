@@ -1,18 +1,23 @@
 # RdpAutoType
 
-**Tired of copy‑pasting passwords and alt‑tabbing between KeePass and whatever
-you're signing into?** RdpAutoType types them for you — in ordinary windows
-**and** in the awkward ones (nested RDP, remote consoles) where normal
-auto‑type simply gives up.
+### Stop copy‑pasting passwords. Stop alt‑tabbing.
 
-A KeePass 2.x plugin that types your credentials **through nested RDP sessions
-and remote consoles** — places where KeePass's built‑in auto‑type and most
-password managers fail.
+RdpAutoType is a KeePass 2.x plugin that types your **username, password — and
+anything else** straight into whatever you're signing into. One shortcut, or
+one middle‑click, and you're in.
 
-It injects keystrokes at the scan‑code level (real hardware make/break codes,
-with keyboard‑layout synchronization), so the keys survive redirection through
-RDP, and RDP‑inside‑RDP. It also adds a cursor popup menu, a configurable
-mouse/keyboard activator, and a visual **Login Script** editor.
+The problem it solves: it works not only in ordinary windows, but also in the
+**hard places** — **nested RDP sessions and remote consoles** — where KeePass's
+built‑in auto‑type and most password managers simply give up.
+
+- 🔑 Fills **username, password, and more** — URLs, domains, any custom field
+- 🖥️ Works in **standard windows** *and* **nested RDP / remote consoles**
+- ⚡ One **hotkey** or **mouse click** — no copy‑paste, no alt‑tabbing
+- 🧩 Visual **Login Script** editor; sequences are stored in your KeePass database
+
+Under the hood it injects keystrokes at the **scan‑code level** (real hardware
+make/break codes with keyboard‑layout sync), so the keys survive redirection
+through RDP, and RDP‑inside‑RDP.
 
 This is an open‑source, clean‑room implementation: written from a behavioral
 specification, with no decompiled code.
