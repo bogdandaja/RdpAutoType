@@ -1,0 +1,35 @@
+name: Release
+
+# Build pe un tag vX.Y.Z si ataseaza RdpAutoType.dll la release.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install KeePass (needed for the plugin API reference)
+        run: choco install keepass.install -y --no-progress
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build (Release)
+        run: >
+          msbuild RdpAutoType\RdpAutoType.csproj
+          /p:Configuration=Release
+          /p:KeePassExe="C:\Program Files\KeePass Password Safe 2\KeePass.exe"
+
+      - name: Publish release with the DLL
+        uses: softprops/action-gh-release@v2
+        with:
+          files: RdpAutoType/bin/Release/RdpAutoType.dll
+          generate_release_notes: true
