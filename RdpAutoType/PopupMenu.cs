@@ -49,6 +49,7 @@ namespace RdpAutoType
             }
 
             Settings st = GetSettings();
+            ApplyMenuTheme(st);
             ContextMenuStrip menu = NewMenu();
 
             // 1. Recent.
@@ -180,18 +181,58 @@ namespace RdpAutoType
             catch { return ""; }
         }
 
-        // Culori deschise fortate (lizibil si sub tema dark).
-        private static readonly ToolStripProfessionalRenderer s_renderer = new LightMenuRenderer();
+        // Teme meniu: 0=Auto (urmeaza tema), 1=Light, 2=Dark. Alese din Settings.
+        private static readonly ToolStripProfessionalRenderer s_lightRenderer =
+            new ThemedMenuRenderer(false, new LightColors());
+        private static readonly ToolStripProfessionalRenderer s_darkRenderer =
+            new ThemedMenuRenderer(true, new DarkColors());
 
-        private static void Style(ToolStripDropDown dd)
+        private ToolStripProfessionalRenderer m_renderer;
+        private Color m_menuBack = Color.White;
+        private Color m_menuFore = Color.Black;
+
+        private void ApplyMenuTheme(Settings s)
         {
-            if (dd == null) return;
-            dd.Renderer = s_renderer;
-            dd.BackColor = Color.White;
-            dd.ForeColor = Color.Black;
+            int mt = (s != null) ? s.MenuTheme : 0;
+            bool dark = (mt == 2) || (mt == 0 && IsSystemDark());
+            if (dark)
+            {
+                m_renderer = s_darkRenderer;
+                m_menuBack = Color.FromArgb(45, 45, 48);
+                m_menuFore = Color.FromArgb(235, 235, 235);
+            }
+            else
+            {
+                m_renderer = s_lightRenderer;
+                m_menuBack = Color.White;
+                m_menuFore = Color.Black;
+            }
         }
 
-        private static ContextMenuStrip NewMenu()
+        private void Style(ToolStripDropDown dd)
+        {
+            if (dd == null) return;
+            if (m_renderer == null) m_renderer = s_lightRenderer;
+            dd.Renderer = m_renderer;
+            dd.BackColor = m_menuBack;
+            dd.ForeColor = m_menuFore;
+        }
+
+        private static bool IsSystemDark()
+        {
+            try
+            {
+                object v = Microsoft.Win32.Registry.GetValue(
+                    @"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
+                    "AppsUseLightTheme", 1);
+                if (v is int) return ((int)v) == 0;
+            }
+            catch { }
+            Color c = SystemColors.Menu;
+            return (c.R * 0.299 + c.G * 0.587 + c.B * 0.114) < 128;
+        }
+
+        private ContextMenuStrip NewMenu()
         {
             ContextMenuStrip m = new ContextMenuStrip();
             m.ShowImageMargin = true;   // loc pentru iconite
@@ -202,14 +243,20 @@ namespace RdpAutoType
             return m;
         }
 
-        /// <summary>Renderer cu culori deschise, text negru fortat.</summary>
-        private sealed class LightMenuRenderer : ToolStripProfessionalRenderer
+        /// <summary>Renderer cu culori fortate (text lizibil), light sau dark.</summary>
+        private sealed class ThemedMenuRenderer : ToolStripProfessionalRenderer
         {
-            public LightMenuRenderer() : base(new LightColors()) { RoundedEdges = false; }
-
+            private readonly bool m_dark;
+            public ThemedMenuRenderer(bool dark, ProfessionalColorTable t) : base(t)
+            {
+                m_dark = dark;
+                RoundedEdges = false;
+            }
             protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
             {
-                e.TextColor = e.Item.Enabled ? Color.Black : Color.FromArgb(140, 140, 140);
+                Color on = m_dark ? Color.FromArgb(235, 235, 235) : Color.Black;
+                Color off = m_dark ? Color.FromArgb(130, 130, 130) : Color.FromArgb(140, 140, 140);
+                e.TextColor = e.Item.Enabled ? on : off;
                 base.OnRenderItemText(e);
             }
         }
@@ -229,6 +276,26 @@ namespace RdpAutoType
             public override Color MenuBorder { get { return Color.FromArgb(160, 160, 160); } }
             public override Color SeparatorDark { get { return Color.FromArgb(210, 210, 210); } }
             public override Color SeparatorLight { get { return Color.White; } }
+        }
+
+        private sealed class DarkColors : ProfessionalColorTable
+        {
+            private static readonly Color Bg = Color.FromArgb(45, 45, 48);
+            private static readonly Color Margin = Color.FromArgb(37, 37, 38);
+            private static readonly Color Sel = Color.FromArgb(62, 92, 130);
+            public override Color ToolStripDropDownBackground { get { return Bg; } }
+            public override Color ImageMarginGradientBegin { get { return Margin; } }
+            public override Color ImageMarginGradientMiddle { get { return Margin; } }
+            public override Color ImageMarginGradientEnd { get { return Margin; } }
+            public override Color MenuItemSelected { get { return Sel; } }
+            public override Color MenuItemSelectedGradientBegin { get { return Sel; } }
+            public override Color MenuItemSelectedGradientEnd { get { return Sel; } }
+            public override Color MenuItemPressedGradientBegin { get { return Color.FromArgb(70, 100, 140); } }
+            public override Color MenuItemPressedGradientEnd { get { return Color.FromArgb(70, 100, 140); } }
+            public override Color MenuItemBorder { get { return Color.FromArgb(90, 120, 160); } }
+            public override Color MenuBorder { get { return Color.FromArgb(80, 80, 80); } }
+            public override Color SeparatorDark { get { return Color.FromArgb(70, 70, 70); } }
+            public override Color SeparatorLight { get { return Color.FromArgb(70, 70, 70); } }
         }
 
         private List<ToolStripItem> BuildGroupItems(PwDatabase db, PwGroup group,

@@ -148,10 +148,6 @@ namespace RdpAutoType
             settings.Click += delegate { ShowSettings(); };
             root.DropDownItems.Add(settings);
 
-            ToolStripMenuItem diag = new ToolStripMenuItem("Diagnostics...");
-            diag.Click += delegate { ShowDiagnostics(); };
-            root.DropDownItems.Add(diag);
-
             return root;
         }
 
@@ -248,36 +244,6 @@ namespace RdpAutoType
                 else m_editMenuItem.ShortcutKeys = Keys.None;
             }
             catch { try { m_editMenuItem.ShortcutKeys = Keys.None; } catch { } }
-        }
-
-        private void ShowDiagnostics()
-        {
-            try
-            {
-                Settings s = m_settings ?? new Settings();
-                string btn = (s.MouseButton == 0) ? "Left" : (s.MouseButton == 2) ? "Right" : "Middle";
-                string mods = (s.MouseCtrl ? "Ctrl " : "") + (s.MouseShift ? "Shift " : "") + (s.MouseAlt ? "Alt " : "");
-                if (mods.Length == 0) mods = "(none)";
-
-                string msg =
-                    "Mouse activator\r\n" +
-                    "  Single action: " + s.MouseSingleAction + " (1=Launch popup)\r\n" +
-                    "  Double action: " + s.MouseDoubleAction + "\r\n" +
-                    "  Button: " + btn + "\r\n" +
-                    "  Modifiers: " + mods.Trim() + "\r\n" +
-                    "  Hook installed: " + (m_mouseHook != null && m_mouseHook.Installed) + "\r\n\r\n" +
-                    "Keyboard hotkey registered: " + (m_hotkey != null && m_hotkey.Registered) + "\r\n\r\n" +
-                    "Note: if another app has a global hook on the same mouse\r\n" +
-                    "button/modifier, it may consume the click before this plugin.";
-
-                MessageBox.Show(msg, "RdpAutoType - Diagnostics",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Eroare: " + ex.Message, "RdpAutoType",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
         }
 
         private void ShowPopup(bool withDelay)

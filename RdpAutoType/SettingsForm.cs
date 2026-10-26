@@ -31,6 +31,7 @@ namespace RdpAutoType
         private RadioButton m_rbLeft, m_rbMiddle, m_rbRight;
         private ComboBox m_cboSingle, m_cboDouble;
         private CheckBox m_chkRecent;
+        private ComboBox m_cboTheme;
         private NumericUpDown m_numRecent;
         private CheckBox m_chkFullPath;
 
@@ -203,6 +204,14 @@ namespace RdpAutoType
             m_chkFullPath.AutoSize = true;
             m_chkFullPath.Location = new Point(16, 64);
             gbComp.Controls.Add(m_chkFullPath);
+
+            AddLabel(gbComp, "Menu theme:", 250, 66);
+            m_cboTheme = new ComboBox();
+            m_cboTheme.DropDownStyle = ComboBoxStyle.DropDownList;
+            m_cboTheme.Items.AddRange(new object[] { "Auto (follow theme)", "Light", "Dark" });
+            m_cboTheme.Location = new Point(340, 62);
+            m_cboTheme.Size = new Size(150, 24);
+            gbComp.Controls.Add(m_cboTheme);
         }
 
         private static void AddLabel(Control parent, string text, int x, int y)
@@ -346,6 +355,7 @@ namespace RdpAutoType
             m_chkRecent.Checked = m_settings.ShowRecent;
             m_numRecent.Value = Settings.Clamp(m_settings.RecentCount, 1, 50);
             m_chkFullPath.Checked = m_settings.ShowFullPath;
+            m_cboTheme.SelectedIndex = Settings.Clamp(m_settings.MenuTheme, 0, 2);
 
             m_perChar.Value = Settings.Clamp(m_settings.PerCharDelayMs, 0, 500);
             m_keyPress.Value = Settings.Clamp(m_settings.KeyPressDelayMs, 0, 100);
@@ -384,6 +394,7 @@ namespace RdpAutoType
             m_settings.ShowRecent = m_chkRecent.Checked;
             m_settings.RecentCount = (int)m_numRecent.Value;
             m_settings.ShowFullPath = m_chkFullPath.Checked;
+            m_settings.MenuTheme = m_cboTheme.SelectedIndex;
 
             m_settings.PerCharDelayMs = (int)m_perChar.Value;
             m_settings.KeyPressDelayMs = (int)m_keyPress.Value;

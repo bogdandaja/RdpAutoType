@@ -40,6 +40,9 @@ namespace RdpAutoType
         private const string KeyEditShortcut = "RdpAutoType.EditShortcut";
         private const string KeyEditShortcutEnabled = "RdpAutoType.EditShortcutEnabled";
 
+        // Tema meniului popup: 0=Auto, 1=Light, 2=Dark.
+        private const string KeyMenuTheme = "RdpAutoType.MenuTheme";
+
         // ---------------- Typing ----------------
 
         /// <summary>Pauza intre caractere.</summary>
@@ -87,6 +90,9 @@ namespace RdpAutoType
         /// <summary>Arata calea grupului langa intrari.</summary>
         public bool ShowFullPath = false;
 
+        /// <summary>Tema meniului popup: 0=Auto, 1=Light, 2=Dark.</summary>
+        public int MenuTheme = 0;
+
         // ---------------- Shortcut ----------------
 
         /// <summary>Scurtatura pentru Edit Login Script, activa in KeePass.</summary>
@@ -118,6 +124,7 @@ namespace RdpAutoType
             s.ShowRecent = ParseBool(cfg.GetString(KeyShowRecent, null), s.ShowRecent);
             s.RecentCount = ParseInt(cfg.GetString(KeyRecentCount, null), s.RecentCount);
             s.ShowFullPath = ParseBool(cfg.GetString(KeyShowFullPath, null), s.ShowFullPath);
+            s.MenuTheme = ParseInt(cfg.GetString(KeyMenuTheme, null), s.MenuTheme);
 
             s.EditShortcutEnabled = ParseBool(cfg.GetString(KeyEditShortcutEnabled, null), s.EditShortcutEnabled);
             s.EditShortcut = ParseInt(cfg.GetString(KeyEditShortcut, null), s.EditShortcut);
@@ -143,6 +150,7 @@ namespace RdpAutoType
             cfg.SetString(KeyShowRecent, Bool(ShowRecent));
             cfg.SetString(KeyRecentCount, Int(RecentCount));
             cfg.SetString(KeyShowFullPath, Bool(ShowFullPath));
+            cfg.SetString(KeyMenuTheme, Int(MenuTheme));
 
             cfg.SetString(KeyEditShortcutEnabled, Bool(EditShortcutEnabled));
             cfg.SetString(KeyEditShortcut, Int(EditShortcut));
