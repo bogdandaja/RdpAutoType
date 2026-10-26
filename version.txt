@@ -1,3 +1,3 @@
 :
-RdpAutoType:0.1.0
+RdpAutoType:0.1.1
 :
