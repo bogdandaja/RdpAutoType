@@ -78,6 +78,7 @@ namespace RdpAutoType
                 }
                 if (recent.DropDownItems.Count > 0)
                 {
+                    Style(recent.DropDown);
                     menu.Items.Add(recent);
                     menu.Items.Add(new ToolStripSeparator());
                 }
@@ -179,6 +180,17 @@ namespace RdpAutoType
             catch { return ""; }
         }
 
+        // Culori deschise fortate (lizibil si sub tema dark).
+        private static readonly ToolStripProfessionalRenderer s_renderer = new LightMenuRenderer();
+
+        private static void Style(ToolStripDropDown dd)
+        {
+            if (dd == null) return;
+            dd.Renderer = s_renderer;
+            dd.BackColor = Color.White;
+            dd.ForeColor = Color.Black;
+        }
+
         private static ContextMenuStrip NewMenu()
         {
             ContextMenuStrip m = new ContextMenuStrip();
@@ -186,7 +198,37 @@ namespace RdpAutoType
             m.ShowCheckMargin = false;
             m.ImageScalingSize = new Size(16, 16);
             m.MaximumSize = new Size(0, Screen.PrimaryScreen.WorkingArea.Height - 40);
+            Style(m);
             return m;
+        }
+
+        /// <summary>Renderer cu culori deschise, text negru fortat.</summary>
+        private sealed class LightMenuRenderer : ToolStripProfessionalRenderer
+        {
+            public LightMenuRenderer() : base(new LightColors()) { RoundedEdges = false; }
+
+            protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
+            {
+                e.TextColor = e.Item.Enabled ? Color.Black : Color.FromArgb(140, 140, 140);
+                base.OnRenderItemText(e);
+            }
+        }
+
+        private sealed class LightColors : ProfessionalColorTable
+        {
+            public override Color ToolStripDropDownBackground { get { return Color.White; } }
+            public override Color ImageMarginGradientBegin { get { return Color.FromArgb(245, 245, 245); } }
+            public override Color ImageMarginGradientMiddle { get { return Color.FromArgb(245, 245, 245); } }
+            public override Color ImageMarginGradientEnd { get { return Color.FromArgb(245, 245, 245); } }
+            public override Color MenuItemSelected { get { return Color.FromArgb(205, 225, 250); } }
+            public override Color MenuItemSelectedGradientBegin { get { return Color.FromArgb(205, 225, 250); } }
+            public override Color MenuItemSelectedGradientEnd { get { return Color.FromArgb(205, 225, 250); } }
+            public override Color MenuItemPressedGradientBegin { get { return Color.FromArgb(230, 240, 250); } }
+            public override Color MenuItemPressedGradientEnd { get { return Color.FromArgb(230, 240, 250); } }
+            public override Color MenuItemBorder { get { return Color.FromArgb(120, 160, 210); } }
+            public override Color MenuBorder { get { return Color.FromArgb(160, 160, 160); } }
+            public override Color SeparatorDark { get { return Color.FromArgb(210, 210, 210); } }
+            public override Color SeparatorLight { get { return Color.White; } }
         }
 
         private List<ToolStripItem> BuildGroupItems(PwDatabase db, PwGroup group,
@@ -205,6 +247,7 @@ namespace RdpAutoType
                     PopulateGroupSubmenu(gi, db, capturedSub, target, withDelay);
                 };
                 gi.DropDownItems.Add(new ToolStripMenuItem("")); // placeholder pt sageata
+                Style(gi.DropDown);
                 items.Add(gi);
             }
 
@@ -276,6 +319,7 @@ namespace RdpAutoType
                     kv.Value.IsProtected, captured, target, delay);
             }
 
+            Style(root.DropDown);
             return root;
         }
 
