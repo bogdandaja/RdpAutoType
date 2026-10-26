@@ -5,10 +5,9 @@ using System.Windows.Forms;
 namespace RdpAutoType
 {
     /// <summary>
-    /// Dialog de preferinte: arbore in stanga, panou in dreapta.
-    /// Pagina "Popup Menu" reproduce "Activation key/button" + "Components".
-    /// Pagina "Typing" tine timing-ul de tastare. DPI-safe (AutoScaleMode.Font),
-    /// coloane largi ca sa nu se suprapuna etichetele cu combo-urile.
+    /// Dialog de preferinte: arbore in stanga, pagini in dreapta. Layout bazat pe
+    /// TableLayoutPanel -> se aseaza corect la orice DPI si orice lungime de text
+    /// (etichetele se auto-dimensioneaza, combo-urile se intind, nimic nu se taie).
     /// </summary>
     internal sealed class SettingsForm : Form
     {
@@ -25,15 +24,16 @@ namespace RdpAutoType
         private TreeView m_tree;
         private Panel m_pagePopup;
         private Panel m_pageTyping;
+        private Panel m_pageShortcut;
 
         // Popup Menu page
         private CheckBox m_kbCtrl, m_kbShift, m_kbAlt;
         private RadioButton m_rbLeft, m_rbMiddle, m_rbRight;
         private ComboBox m_cboSingle, m_cboDouble;
         private CheckBox m_chkRecent;
-        private ComboBox m_cboTheme;
         private NumericUpDown m_numRecent;
         private CheckBox m_chkFullPath;
+        private ComboBox m_cboTheme;
 
         // Typing page
         private NumericUpDown m_perChar;
@@ -41,7 +41,6 @@ namespace RdpAutoType
         private CheckBox m_autoSubmit;
 
         // Shortcut page
-        private Panel m_pageShortcut;
         private CheckBox m_chkShortcut;
         private CaptureBox m_capShortcut;
 
@@ -51,6 +50,9 @@ namespace RdpAutoType
             BuildUi();
             LoadValues();
         }
+
+        /// <summary>Unitate relativa la font (DPI-independent).</summary>
+        private int U(double f) { return (int)Math.Round(Font.Height * f); }
 
         private void BuildUi()
         {
@@ -62,239 +64,303 @@ namespace RdpAutoType
             ShowInTaskbar = false;
             Font = SystemFonts.MessageBoxFont;
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(720, 470);
+            ClientSize = new Size(U(46), U(30));
 
-            // --- left tree ---
+            // host pentru pagini (umple restul)
+            Panel host = new Panel();
+            host.Dock = DockStyle.Fill;
+
+            // arbore
             m_tree = new TreeView();
-            m_tree.Location = new Point(12, 12);
-            m_tree.Size = new Size(180, 408);
+            m_tree.Dock = DockStyle.Left;
+            m_tree.Width = U(12);
             m_tree.HideSelection = false;
             m_tree.FullRowSelect = true;
             TreeNode root = new TreeNode("Preferences");
-            TreeNode nPopup = new TreeNode("Popup Menu");
-            TreeNode nTyping = new TreeNode("Typing");
-            TreeNode nShortcut = new TreeNode("Shortcut");
-            nPopup.Tag = "popup";
-            nTyping.Tag = "typing";
-            nShortcut.Tag = "shortcut";
-            root.Nodes.Add(nPopup);
-            root.Nodes.Add(nTyping);
-            root.Nodes.Add(nShortcut);
+            TreeNode nPopup = new TreeNode("Popup Menu"); nPopup.Tag = "popup";
+            TreeNode nTyping = new TreeNode("Typing"); nTyping.Tag = "typing";
+            TreeNode nShortcut = new TreeNode("Shortcut"); nShortcut.Tag = "shortcut";
+            root.Nodes.Add(nPopup); root.Nodes.Add(nTyping); root.Nodes.Add(nShortcut);
             m_tree.Nodes.Add(root);
             root.Expand();
             m_tree.AfterSelect += delegate(object s, TreeViewEventArgs e) { ShowPage(e.Node); };
-            Controls.Add(m_tree);
 
-            // --- right pages ---
-            Point area = new Point(204, 12);
-            Size areaSize = new Size(504, 408);
-
-            m_pagePopup = new Panel();
-            m_pagePopup.Location = area;
-            m_pagePopup.Size = areaSize;
-            BuildPopupPage(m_pagePopup);
-            Controls.Add(m_pagePopup);
-
-            m_pageTyping = new Panel();
-            m_pageTyping.Location = area;
-            m_pageTyping.Size = areaSize;
-            m_pageTyping.Visible = false;
-            BuildTypingPage(m_pageTyping);
-            Controls.Add(m_pageTyping);
-
-            m_pageShortcut = new Panel();
-            m_pageShortcut.Location = area;
-            m_pageShortcut.Size = areaSize;
-            m_pageShortcut.Visible = false;
-            BuildShortcutPage(m_pageShortcut);
-            Controls.Add(m_pageShortcut);
-
-            // --- OK / Cancel ---
-            int by = ClientSize.Height - 42;
-            Button ok = new Button();
-            ok.Text = "OK";
-            ok.Size = new Size(90, 30);
-            ok.DialogResult = DialogResult.OK;
-            ok.Location = new Point(ClientSize.Width - 12 - 90 - 10 - 90, by);
+            // bara OK / Cancel
+            Panel bottom = new Panel();
+            bottom.Dock = DockStyle.Bottom;
+            bottom.Height = U(3);
+            FlowLayoutPanel fb = new FlowLayoutPanel();
+            fb.Dock = DockStyle.Right;
+            fb.FlowDirection = FlowDirection.LeftToRight;
+            fb.AutoSize = true;
+            fb.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            fb.WrapContents = false;
+            fb.Padding = new Padding(0, U(0.4), U(0.7), U(0.4));
+            Button ok = MakeButton("OK"); ok.DialogResult = DialogResult.OK;
             ok.Click += delegate { SaveValues(); };
-            Controls.Add(ok);
-
-            Button cancel = new Button();
-            cancel.Text = "Cancel";
-            cancel.Size = new Size(90, 30);
-            cancel.DialogResult = DialogResult.Cancel;
-            cancel.Location = new Point(ClientSize.Width - 12 - 90, by);
-            Controls.Add(cancel);
-
+            Button cancel = MakeButton("Cancel"); cancel.DialogResult = DialogResult.Cancel;
+            fb.Controls.Add(ok);
+            fb.Controls.Add(cancel);
+            bottom.Controls.Add(fb);
             AcceptButton = ok;
             CancelButton = cancel;
+
+            // pagini
+            m_pagePopup = BuildPopupPage();
+            m_pageTyping = BuildTypingPage();
+            m_pageShortcut = BuildShortcutPage();
+            m_pageTyping.Visible = false;
+            m_pageShortcut.Visible = false;
+            host.Controls.Add(m_pagePopup);
+            host.Controls.Add(m_pageTyping);
+            host.Controls.Add(m_pageShortcut);
+
+            // ordine: Fill primul, apoi Left, apoi Bottom
+            Controls.Add(host);
+            Controls.Add(m_tree);
+            Controls.Add(bottom);
 
             m_tree.SelectedNode = nPopup;
         }
 
-        // ---------------- Popup Menu page ----------------
-
-        private void BuildPopupPage(Panel p)
+        private Button MakeButton(string text)
         {
-            Label head = new Label();
-            head.Text = "Configure popup menu settings.";
-            head.Font = new Font(Font, FontStyle.Bold);
-            head.AutoSize = true;
-            head.Location = new Point(2, 0);
-            p.Controls.Add(head);
-
-            // Activation key/button
-            GroupBox gbAct = new GroupBox();
-            gbAct.Text = "Activation key/button";
-            gbAct.Location = new Point(2, 26);
-            gbAct.Size = new Size(498, 214);
-            p.Controls.Add(gbAct);
-
-            AddLabel(gbAct, "Keyboard:", 16, 34);
-            m_kbCtrl = Check(gbAct, "Ctrl", 190, 32);
-            m_kbShift = Check(gbAct, "Shift", 300, 32);
-            m_kbAlt = Check(gbAct, "Alt", 410, 32);
-
-            AddLabel(gbAct, "Mouse button:", 16, 72);
-            m_rbLeft = Radio(gbAct, "Left", 190, 70);
-            m_rbMiddle = Radio(gbAct, "Middle", 300, 70);
-            m_rbRight = Radio(gbAct, "Right", 410, 70);
-
-            AddLabel(gbAct, "Single mouse click:", 16, 112);
-            m_cboSingle = ClickCombo(gbAct, 190, 108);
-
-            AddLabel(gbAct, "Double mouse click:", 16, 150);
-            m_cboDouble = ClickCombo(gbAct, 190, 146);
-
-            Button reset = new Button();
-            reset.Text = "Reset activation key/button";
-            reset.Size = new Size(220, 28);
-            reset.Location = new Point(258, 182);
-            reset.Click += delegate
-            {
-                m_settings.ResetActivation();
-                LoadActivation();
-            };
-            gbAct.Controls.Add(reset);
-
-            // Components
-            GroupBox gbComp = new GroupBox();
-            gbComp.Text = "Components";
-            gbComp.Location = new Point(2, 248);
-            gbComp.Size = new Size(498, 96);
-            p.Controls.Add(gbComp);
-
-            m_chkRecent = new CheckBox();
-            m_chkRecent.Text = "Display";
-            m_chkRecent.AutoSize = true;
-            m_chkRecent.Location = new Point(16, 32);
-            gbComp.Controls.Add(m_chkRecent);
-
-            m_numRecent = new NumericUpDown();
-            m_numRecent.Minimum = 1;
-            m_numRecent.Maximum = 50;
-            m_numRecent.Size = new Size(60, 24);
-            m_numRecent.Location = new Point(120, 30);
-            gbComp.Controls.Add(m_numRecent);
-
-            AddLabel(gbComp, "recent items", 190, 34);
-
-            m_chkFullPath = new CheckBox();
-            m_chkFullPath.Text = "Show full path";
-            m_chkFullPath.AutoSize = true;
-            m_chkFullPath.Location = new Point(16, 64);
-            gbComp.Controls.Add(m_chkFullPath);
-
-            AddLabel(gbComp, "Menu theme:", 250, 66);
-            m_cboTheme = new ComboBox();
-            m_cboTheme.DropDownStyle = ComboBoxStyle.DropDownList;
-            m_cboTheme.Items.AddRange(new object[] { "Auto (follow theme)", "Light", "Dark" });
-            m_cboTheme.Location = new Point(340, 62);
-            m_cboTheme.Size = new Size(150, 24);
-            gbComp.Controls.Add(m_cboTheme);
+            Button b = new Button();
+            b.Text = text;
+            b.AutoSize = true;
+            b.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            b.MinimumSize = new Size(U(6), U(2));
+            b.Margin = new Padding(U(0.5), 0, 0, 0);
+            return b;
         }
 
-        private static void AddLabel(Control parent, string text, int x, int y)
+        // ---------------- helpers layout ----------------
+
+        private TableLayoutPanel NewPage()
+        {
+            TableLayoutPanel t = new TableLayoutPanel();
+            t.Dock = DockStyle.Fill;
+            t.ColumnCount = 2;
+            t.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            t.Padding = new Padding(U(0.8), U(0.6), U(1.1), U(0.6));
+            t.AutoScroll = true;
+            return t;
+        }
+
+        private void AddHeader(TableLayoutPanel t, string text)
         {
             Label l = new Label();
             l.Text = text;
             l.AutoSize = true;
-            l.Location = new Point(x, y);
-            parent.Controls.Add(l);
+            l.Font = new Font(Font, FontStyle.Bold);
+            l.Margin = new Padding(0, (t.RowCount == 0 ? 0 : U(0.6)), 0, U(0.25));
+            int r = NextRow(t);
+            t.Controls.Add(l, 0, r);
+            t.SetColumnSpan(l, 2);
         }
 
-        private static CheckBox Check(Control parent, string text, int x, int y)
+        private void AddRow(TableLayoutPanel t, string label, Control c)
+        {
+            Label l = new Label();
+            l.Text = label;
+            l.AutoSize = true;
+            l.Anchor = AnchorStyles.Left;
+            l.Margin = new Padding(0, U(0.35), U(0.7), U(0.35));
+            int r = NextRow(t);
+            t.Controls.Add(l, 0, r);
+            c.Margin = new Padding(0, U(0.2), 0, U(0.2));
+            t.Controls.Add(c, 1, r);
+        }
+
+        private void AddFull(TableLayoutPanel t, Control c)
+        {
+            int r = NextRow(t);
+            c.Margin = new Padding(0, U(0.25), 0, U(0.25));
+            t.Controls.Add(c, 0, r);
+            t.SetColumnSpan(c, 2);
+        }
+
+        private static int NextRow(TableLayoutPanel t)
+        {
+            int r = t.RowCount;
+            t.RowCount = r + 1;
+            t.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            return r;
+        }
+
+        private FlowLayoutPanel Flow()
+        {
+            FlowLayoutPanel f = new FlowLayoutPanel();
+            f.AutoSize = true;
+            f.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            f.FlowDirection = FlowDirection.LeftToRight;
+            f.WrapContents = false;
+            f.Margin = Padding.Empty;
+            f.Anchor = AnchorStyles.Left;
+            return f;
+        }
+
+        private static CheckBox Chk(string text)
         {
             CheckBox c = new CheckBox();
             c.Text = text;
             c.AutoSize = true;
-            c.Location = new Point(x, y);
-            parent.Controls.Add(c);
+            c.Margin = new Padding(0, 4, 12, 4);
             return c;
         }
 
-        private static RadioButton Radio(Control parent, string text, int x, int y)
+        private static RadioButton Rad(string text)
         {
             RadioButton r = new RadioButton();
             r.Text = text;
             r.AutoSize = true;
-            r.Location = new Point(x, y);
-            parent.Controls.Add(r);
+            r.Margin = new Padding(0, 4, 12, 4);
             return r;
         }
 
-        private static ComboBox ClickCombo(Control parent, int x, int y)
+        private ComboBox FillCombo(object[] items)
         {
             ComboBox c = new ComboBox();
             c.DropDownStyle = ComboBoxStyle.DropDownList;
-            c.Items.AddRange(ClickActions);
-            c.Location = new Point(x, y);
-            c.Size = new Size(290, 24);
-            parent.Controls.Add(c);
+            c.Dock = DockStyle.Fill;
+            c.Items.AddRange(items);
             return c;
         }
 
-        // ---------------- Typing page ----------------
-
-        private void BuildTypingPage(Panel p)
+        private static Label Lbl(string text)
         {
-            Label head = new Label();
-            head.Text = "Configure typing settings.";
-            head.Font = new Font(Font, FontStyle.Bold);
-            head.AutoSize = true;
-            head.Location = new Point(2, 0);
-            p.Controls.Add(head);
-
-            GroupBox gb = new GroupBox();
-            gb.Text = "Timing";
-            gb.Location = new Point(2, 26);
-            gb.Size = new Size(498, 112);
-            p.Controls.Add(gb);
-
-            m_perChar = TimingRow(gb, "Between characters", 34, 0, 500);
-            m_keyPress = TimingRow(gb, "Key press / release", 70, 0, 100);
-
-            m_autoSubmit = new CheckBox();
-            m_autoSubmit.Text = "Auto Submit (press Enter at the end)";
-            m_autoSubmit.AutoSize = true;
-            m_autoSubmit.Location = new Point(6, 152);
-            p.Controls.Add(m_autoSubmit);
+            Label l = new Label();
+            l.Text = text;
+            l.AutoSize = true;
+            l.Margin = new Padding(6, 6, 0, 0);
+            return l;
         }
 
-        private NumericUpDown TimingRow(GroupBox gb, string text, int y, int min, int max)
+        // ---------------- pages ----------------
+
+        private Panel BuildPopupPage()
         {
-            AddLabel(gb, text, 16, y + 2);
+            TableLayoutPanel t = NewPage();
 
+            AddHeader(t, "Activation key/button");
+
+            FlowLayoutPanel kb = Flow();
+            m_kbCtrl = Chk("Ctrl"); m_kbShift = Chk("Shift"); m_kbAlt = Chk("Alt");
+            kb.Controls.Add(m_kbCtrl); kb.Controls.Add(m_kbShift); kb.Controls.Add(m_kbAlt);
+            AddRow(t, "Keyboard:", kb);
+
+            FlowLayoutPanel mb = Flow();
+            m_rbLeft = Rad("Left"); m_rbMiddle = Rad("Middle"); m_rbRight = Rad("Right");
+            mb.Controls.Add(m_rbLeft); mb.Controls.Add(m_rbMiddle); mb.Controls.Add(m_rbRight);
+            AddRow(t, "Mouse button:", mb);
+
+            m_cboSingle = FillCombo(ClickActions);
+            AddRow(t, "Single mouse click:", m_cboSingle);
+            m_cboDouble = FillCombo(ClickActions);
+            AddRow(t, "Double mouse click:", m_cboDouble);
+
+            Button reset = new Button();
+            reset.Text = "Reset activation key/button";
+            reset.AutoSize = true;
+            reset.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            reset.Anchor = AnchorStyles.Left;
+            reset.Click += delegate { m_settings.ResetActivation(); LoadActivation(); };
+            AddFull(t, reset);
+
+            AddHeader(t, "Components");
+
+            FlowLayoutPanel disp = Flow();
+            m_chkRecent = Chk("Display");
+            m_numRecent = new NumericUpDown();
+            m_numRecent.Minimum = 1; m_numRecent.Maximum = 50;
+            m_numRecent.Width = U(3.5);
+            m_numRecent.Margin = new Padding(0, 3, 6, 0);
+            disp.Controls.Add(m_chkRecent);
+            disp.Controls.Add(m_numRecent);
+            disp.Controls.Add(Lbl("recent items"));
+            AddFull(t, disp);
+
+            m_chkFullPath = Chk("Show full path");
+            AddFull(t, m_chkFullPath);
+
+            m_cboTheme = FillCombo(new object[] { "Auto (follow theme)", "Light", "Dark" });
+            AddRow(t, "Menu theme:", m_cboTheme);
+
+            return t;
+        }
+
+        private Panel BuildTypingPage()
+        {
+            TableLayoutPanel t = NewPage();
+
+            AddHeader(t, "Timing");
+
+            FlowLayoutPanel r1 = Flow();
+            m_perChar = Num(0, 500);
+            r1.Controls.Add(m_perChar); r1.Controls.Add(Lbl("ms"));
+            AddRow(t, "Between characters:", r1);
+
+            FlowLayoutPanel r2 = Flow();
+            m_keyPress = Num(0, 100);
+            r2.Controls.Add(m_keyPress); r2.Controls.Add(Lbl("ms"));
+            AddRow(t, "Key press / release:", r2);
+
+            m_autoSubmit = Chk("Auto Submit (press Enter at the end)");
+            AddFull(t, m_autoSubmit);
+
+            return t;
+        }
+
+        private NumericUpDown Num(int min, int max)
+        {
             NumericUpDown n = new NumericUpDown();
-            n.Minimum = min;
-            n.Maximum = max;
-            n.Size = new Size(70, 24);
-            n.Location = new Point(280, y);
+            n.Minimum = min; n.Maximum = max;
+            n.Width = U(4);
             n.TextAlign = HorizontalAlignment.Right;
-            gb.Controls.Add(n);
-
-            AddLabel(gb, "ms", 358, y + 2);
+            n.Margin = new Padding(0, 3, 6, 0);
             return n;
+        }
+
+        private Panel BuildShortcutPage()
+        {
+            TableLayoutPanel t = NewPage();
+
+            AddFull(t, Bold("Edit Login Script shortcut (active inside KeePass)."));
+
+            m_chkShortcut = Chk("Enable shortcut");
+            AddFull(t, m_chkShortcut);
+
+            FlowLayoutPanel sc = Flow();
+            m_capShortcut = new CaptureBox();
+            m_capShortcut.Width = U(16);
+            m_capShortcut.Margin = new Padding(0, 2, 8, 0);
+            Button clear = new Button();
+            clear.Text = "Clear";
+            clear.AutoSize = true;
+            clear.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            clear.Click += delegate { m_capShortcut.SetKeys(Keys.None); };
+            sc.Controls.Add(m_capShortcut);
+            sc.Controls.Add(clear);
+            AddRow(t, "Shortcut:", sc);
+
+            Label help = new Label();
+            help.Text = "Click the box and press the keys (e.g. Ctrl+Enter).\r\n" +
+                        "Works when KeePass is active and an entry is selected.";
+            help.AutoSize = true;
+            help.ForeColor = SystemColors.GrayText;
+            AddFull(t, help);
+
+            return t;
+        }
+
+        private Label Bold(string text)
+        {
+            Label l = new Label();
+            l.Text = text;
+            l.AutoSize = true;
+            l.Font = new Font(Font, FontStyle.Bold);
+            return l;
         }
 
         // ---------------- navigation ----------------
@@ -305,45 +371,6 @@ namespace RdpAutoType
             m_pagePopup.Visible = (tag != "typing" && tag != "shortcut");
             m_pageTyping.Visible = (tag == "typing");
             m_pageShortcut.Visible = (tag == "shortcut");
-        }
-
-        // ---------------- Shortcut page ----------------
-
-        private void BuildShortcutPage(Panel p)
-        {
-            Label head = new Label();
-            head.Text = "Edit Login Script shortcut (active inside KeePass).";
-            head.Font = new Font(Font, FontStyle.Bold);
-            head.AutoSize = true;
-            head.Location = new Point(2, 0);
-            p.Controls.Add(head);
-
-            m_chkShortcut = new CheckBox();
-            m_chkShortcut.Text = "Enable shortcut";
-            m_chkShortcut.AutoSize = true;
-            m_chkShortcut.Location = new Point(6, 34);
-            p.Controls.Add(m_chkShortcut);
-
-            AddLabel(p, "Shortcut:", 6, 76);
-            m_capShortcut = new CaptureBox();
-            m_capShortcut.Location = new Point(90, 72);
-            m_capShortcut.Size = new Size(220, 24);
-            p.Controls.Add(m_capShortcut);
-
-            Button clear = new Button();
-            clear.Text = "Clear";
-            clear.Size = new Size(70, 26);
-            clear.Location = new Point(320, 72);
-            clear.Click += delegate { m_capShortcut.SetKeys(Keys.None); };
-            p.Controls.Add(clear);
-
-            Label help = new Label();
-            help.Text = "Click the box and press the keys (e.g. Ctrl+Enter).\r\n" +
-                        "Works when KeePass is active and an entry is selected.";
-            help.AutoSize = true;
-            help.ForeColor = SystemColors.GrayText;
-            help.Location = new Point(6, 112);
-            p.Controls.Add(help);
         }
 
         // ---------------- load / save ----------------
@@ -422,8 +449,6 @@ namespace RdpAutoType
                 Text = KeysToText(k);
             }
 
-            // Revendica toate tastele (Enter/Tab/sageti) ca sa ajunga la KeyDown,
-            // nu la AcceptButton/navigare.
             protected override bool IsInputKey(Keys keyData) { return true; }
 
             protected override void OnKeyDown(KeyEventArgs e)
