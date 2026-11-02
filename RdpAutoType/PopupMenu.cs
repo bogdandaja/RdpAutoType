@@ -209,6 +209,19 @@ namespace RdpAutoType
                     string[] toks = q.ToLowerInvariant().Split(
                         (char[])null, StringSplitOptions.RemoveEmptyEntries);
 
+                    // 1. Foldere al caror NUME se potriveste - deasupra, ca
+                    //    grupuri expandabile (cu tot continutul lor).
+                    int groupsShown = 0;
+                    foreach (PwGroup g in AllGroups(db.RootGroup))
+                    {
+                        if (!GroupMatches(g, toks)) continue;
+                        menu.Items.Add(MakeGroupItem(db, g, target, withDelay, true));
+                        groupsShown++;
+                    }
+                    if (groupsShown > 0)
+                        menu.Items.Add(new ToolStripSeparator());
+
+                    // 2. Intrari individuale care fac match pe titlu/user/URL.
                     int shown = 0, matched = 0;
                     foreach (PwEntry pe in all)
                     {
@@ -221,7 +234,7 @@ namespace RdpAutoType
                         }
                     }
 
-                    if (shown == 0)
+                    if (groupsShown == 0 && shown == 0)
                     {
                         ToolStripMenuItem none = new ToolStripMenuItem("(no matches)");
                         none.Enabled = false;
@@ -273,6 +286,32 @@ namespace RdpAutoType
             string user = pe.Strings.ReadSafe(PwDefs.UserNameField);
             string url = pe.Strings.ReadSafe(PwDefs.UrlField);
             return ((title ?? "") + "\n" + (user ?? "") + "\n" + (url ?? "")).ToLowerInvariant();
+        }
+
+        /// <summary>Toate grupurile descendente (fara radacina).</summary>
+        private static List<PwGroup> AllGroups(PwGroup root)
+        {
+            List<PwGroup> list = new List<PwGroup>();
+            if (root != null) CollectGroups(root, list);
+            return list;
+        }
+
+        private static void CollectGroups(PwGroup g, List<PwGroup> acc)
+        {
+            foreach (PwGroup sub in g.Groups)
+            {
+                acc.Add(sub);
+                CollectGroups(sub, acc);
+            }
+        }
+
+        /// <summary>Un folder se potriveste daca NUMELE lui contine toti termenii.</summary>
+        private static bool GroupMatches(PwGroup g, string[] toks)
+        {
+            string name = SafeName(g.Name).ToLowerInvariant();
+            foreach (string t in toks)
+                if (name.IndexOf(t, StringComparison.Ordinal) < 0) return false;
+            return true;
         }
 
         /// <summary>Tasteaza direct login-ul celei mai recente intrari (fara meniu).</summary>
@@ -482,23 +521,35 @@ namespace RdpAutoType
             if (group == null) return items;
 
             foreach (PwGroup sub in group.Groups)
-            {
-                PwGroup capturedSub = sub;
-                ToolStripMenuItem gi = new ToolStripMenuItem(SafeName(sub.Name));
-                gi.Image = GroupIcon(db, sub);
-                gi.DropDownOpening += delegate
-                {
-                    PopulateGroupSubmenu(gi, db, capturedSub, target, withDelay);
-                };
-                gi.DropDownItems.Add(new ToolStripMenuItem("")); // placeholder pt sageata
-                Style(gi.DropDown);
-                items.Add(gi);
-            }
+                items.Add(MakeGroupItem(db, sub, target, withDelay, false));
 
             foreach (PwEntry pe in group.Entries)
                 items.Add(MakeEntryMenu(db, pe, target, withDelay));
 
             return items;
+        }
+
+        /// <summary>Un item de grup (folder) cu submeniu lazy. showPath adauga
+        /// calea parintelui in paranteza, pentru dezambiguizare in cautare.</summary>
+        private ToolStripMenuItem MakeGroupItem(PwDatabase db, PwGroup sub,
+            IntPtr target, bool withDelay, bool showPath)
+        {
+            PwGroup capturedSub = sub;
+            string text = SafeName(sub.Name);
+            if (showPath && sub.ParentGroup != null)
+            {
+                string pp = GroupPath(sub.ParentGroup);
+                if (!string.IsNullOrEmpty(pp)) text = text + "  (" + pp + ")";
+            }
+            ToolStripMenuItem gi = new ToolStripMenuItem(text);
+            gi.Image = GroupIcon(db, sub);
+            gi.DropDownOpening += delegate
+            {
+                PopulateGroupSubmenu(gi, db, capturedSub, target, withDelay);
+            };
+            gi.DropDownItems.Add(new ToolStripMenuItem("")); // placeholder pt sageata
+            Style(gi.DropDown);
+            return gi;
         }
 
         private void PopulateGroupSubmenu(ToolStripMenuItem gi, PwDatabase db,
