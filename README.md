@@ -41,6 +41,9 @@ Cursor popup menu with per‑entry fields:
 - **Scan‑code typing engine** that works through simple and nested RDP.
 - **Cursor popup menu**: Recent entries, groups as submenus,
   KeePass icons, and per‑entry field list + Login.
+- **Live search** in the popup: type in the search box to filter the whole
+  database by title, username, URL and group path; each result shows its
+  group, and `Down` / `Enter` / `Esc` drive it from the keyboard.
 - **Activators**:
   - Global hotkey (default `Ctrl+Alt+Space`).
   - Mouse activator — left/middle/right button, optional `Ctrl/Shift/Alt`,
@@ -80,6 +83,8 @@ Cursor popup menu with per‑entry fields:
 - Press the activator (default `Ctrl+Alt+Space`, or your configured mouse
   button) to open the popup menu at the cursor; pick an entry → **Login** to run
   its login script, or pick a single field to type just that value.
+- With the popup open, start typing in the **Search** box at the top to filter
+  entries across all groups; pick a result to get its Login / field actions.
 - Right‑click an entry (or `Ctrl+Enter`) → **Edit Login Script…** to build the
   sequence visually.
 - *Tools → RdpAutoType → Settings…* for activator, timing, components and the
