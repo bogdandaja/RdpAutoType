@@ -12,6 +12,7 @@ namespace RdpAutoType
 {
     /// <summary>
     /// Cursor popup menu:
+    ///   search box (type to filter, live)
     ///   level 1: "Recent" + root groups + Cancel
     ///   level 2+: subgroups (recursive) and each group's entries
     ///   entry level: submenu with actions (Login / Username / Password / URL)
@@ -27,6 +28,9 @@ namespace RdpAutoType
 
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         private static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder s, int max);
+
+        /// <summary>Cate rezultate maxim afisate in cautare (ca sa nu umple ecranul).</summary>
+        private const int SearchResultCap = 50;
 
         private readonly IPluginHost m_host;
         private readonly Func<Settings> m_getSettings;
@@ -48,17 +52,89 @@ namespace RdpAutoType
                 return;
             }
 
-            Settings st = GetSettings();
-            ApplyMenuTheme(st);
-            ContextMenuStrip menu = NewMenu();
-
-            // 1. Recent.
             List<PwEntry> all = CollectEntries(db.RootGroup);
             if (all.Count == 0)
             {
                 ShowInfo("The database has no entries.");
                 return;
             }
+
+            Settings st = GetSettings();
+            ApplyMenuTheme(st);
+            ContextMenuStrip menu = NewMenu();
+
+            // Fix sus: caseta de cautare + separator. Restul (indexele >= 2) se
+            // reconstruieste pe masura ce se tasteaza.
+            ToolStripTextBox search = new ToolStripTextBox();
+            search.AutoSize = false;
+            search.Width = 240;
+            search.BorderStyle = BorderStyle.FixedSingle;
+            try { search.BackColor = m_menuBack; search.ForeColor = m_menuFore; }
+            catch { }
+            try { search.TextBox.PlaceholderText = "Search entries..."; } catch { }
+            menu.Items.Add(search);
+            menu.Items.Add(new ToolStripSeparator());
+
+            // Continutul normal (Recent + grupuri + Cancel), construit o data.
+            List<ToolStripItem> baseItems = BuildBaseItems(menu, db, all, st, target, withDelay);
+            foreach (ToolStripItem it in baseItems)
+                menu.Items.Add(it);
+
+            // Filtrare live.
+            search.TextChanged += delegate
+            {
+                RebuildSearch(menu, search.Text, db, all, baseItems, target, withDelay);
+            };
+
+            // Tastatura din caseta de cautare: jos = intra in lista, Enter =
+            // deschide actiunile primului rezultat, Esc = inchide.
+            search.KeyDown += delegate(object s, KeyEventArgs e)
+            {
+                if (e.KeyCode == Keys.Down)
+                {
+                    ToolStripMenuItem first = FirstActionItem(menu);
+                    if (first != null) { first.Select(); e.Handled = true; }
+                }
+                else if (e.KeyCode == Keys.Enter)
+                {
+                    ToolStripMenuItem first = FirstActionItem(menu);
+                    if (first != null)
+                    {
+                        first.Select();
+                        first.ShowDropDown();
+                        e.Handled = true;
+                        e.SuppressKeyPress = true;
+                    }
+                }
+                else if (e.KeyCode == Keys.Escape)
+                {
+                    menu.Close();
+                    e.Handled = true;
+                }
+            };
+
+            // Focus pe caseta imediat ce meniul s-a deschis.
+            menu.Opened += delegate
+            {
+                try
+                {
+                    menu.BeginInvoke((MethodInvoker)delegate
+                    {
+                        try { search.Focus(); search.TextBox.Focus(); } catch { }
+                    });
+                }
+                catch { }
+            };
+
+            menu.Show(Cursor.Position);
+        }
+
+        /// <summary>Construieste continutul normal al meniului (fara caseta de
+        /// cautare): Recent (optional) + grupurile radacina + Cancel.</summary>
+        private List<ToolStripItem> BuildBaseItems(ContextMenuStrip menu, PwDatabase db,
+            List<PwEntry> all, Settings st, IntPtr target, bool withDelay)
+        {
+            List<ToolStripItem> items = new List<ToolStripItem>();
 
             if (st.ShowRecent)
             {
@@ -80,22 +156,109 @@ namespace RdpAutoType
                 if (recent.DropDownItems.Count > 0)
                 {
                     Style(recent.DropDown);
-                    menu.Items.Add(recent);
-                    menu.Items.Add(new ToolStripSeparator());
+                    items.Add(recent);
+                    items.Add(new ToolStripSeparator());
                 }
             }
 
-            // 2. Root groups (recursive, lazy).
             foreach (ToolStripItem it in BuildGroupItems(db, db.RootGroup, target, withDelay))
-                menu.Items.Add(it);
+                items.Add(it);
 
-            // 3. Cancel.
-            menu.Items.Add(new ToolStripSeparator());
+            items.Add(new ToolStripSeparator());
             ToolStripMenuItem cancel = new ToolStripMenuItem("Cancel");
             cancel.Click += delegate { menu.Close(); };
-            menu.Items.Add(cancel);
+            items.Add(cancel);
 
-            menu.Show(Cursor.Position);
+            return items;
+        }
+
+        /// <summary>Reconstruieste zona de sub separator: lista normala cand
+        /// cautarea e goala, altfel rezultatele plate (cu submeniul lor).</summary>
+        private void RebuildSearch(ContextMenuStrip menu, string query, PwDatabase db,
+            List<PwEntry> all, List<ToolStripItem> baseItems, IntPtr target, bool withDelay)
+        {
+            menu.SuspendLayout();
+            try
+            {
+                // Scoate tot ce e sub caseta + separatorul fix (indexele 0 si 1).
+                while (menu.Items.Count > 2)
+                    menu.Items.RemoveAt(menu.Items.Count - 1);
+
+                string q = (query ?? "").Trim();
+                if (q.Length == 0)
+                {
+                    foreach (ToolStripItem it in baseItems)
+                        menu.Items.Add(it);
+                }
+                else
+                {
+                    string[] toks = q.ToLowerInvariant().Split(
+                        (char[])null, StringSplitOptions.RemoveEmptyEntries);
+
+                    int shown = 0, matched = 0;
+                    foreach (PwEntry pe in all)
+                    {
+                        if (!MatchesQuery(pe, toks)) continue;
+                        matched++;
+                        if (shown < SearchResultCap)
+                        {
+                            menu.Items.Add(MakeEntryMenu(db, pe, target, withDelay, true));
+                            shown++;
+                        }
+                    }
+
+                    if (shown == 0)
+                    {
+                        ToolStripMenuItem none = new ToolStripMenuItem("(no matches)");
+                        none.Enabled = false;
+                        menu.Items.Add(none);
+                    }
+                    else if (matched > shown)
+                    {
+                        ToolStripMenuItem more = new ToolStripMenuItem(
+                            "... " + (matched - shown) + " more - refine search");
+                        more.Enabled = false;
+                        menu.Items.Add(more);
+                    }
+
+                    menu.Items.Add(new ToolStripSeparator());
+                    ToolStripMenuItem cancel = new ToolStripMenuItem("Cancel");
+                    cancel.Click += delegate { menu.Close(); };
+                    menu.Items.Add(cancel);
+                }
+            }
+            finally { menu.ResumeLayout(); }
+        }
+
+        /// <summary>Primul element de actiune (dupa caseta + separator) care e
+        /// o intrare activa, pentru navigare din tastatura.</summary>
+        private static ToolStripMenuItem FirstActionItem(ContextMenuStrip menu)
+        {
+            for (int i = 2; i < menu.Items.Count; i++)
+            {
+                ToolStripMenuItem mi = menu.Items[i] as ToolStripMenuItem;
+                if (mi != null && mi.Enabled) return mi;
+            }
+            return null;
+        }
+
+        private static bool MatchesQuery(PwEntry pe, string[] toks)
+        {
+            string hay = SearchText(pe);
+            foreach (string t in toks)
+                if (hay.IndexOf(t, StringComparison.Ordinal) < 0) return false;
+            return true;
+        }
+
+        /// <summary>Textul cautabil al unei intrari: titlu + user + URL + calea grupului.</summary>
+        private static string SearchText(PwEntry pe)
+        {
+            string title = pe.Strings.ReadSafe(PwDefs.TitleField);
+            string user = pe.Strings.ReadSafe(PwDefs.UserNameField);
+            string url = pe.Strings.ReadSafe(PwDefs.UrlField);
+            string grp = (pe.ParentGroup != null) ? GroupPath(pe.ParentGroup) : "";
+            return ((title ?? "") + "\n" + (user ?? "") + "\n" +
+                    (url ?? "") + "\n" + (grp ?? "")).ToLowerInvariant();
         }
 
         /// <summary>Tasteaza direct login-ul celei mai recente intrari (fara meniu).</summary>
@@ -348,12 +511,18 @@ namespace RdpAutoType
         private ToolStripMenuItem MakeEntryMenu(PwDatabase db, PwEntry pe,
             IntPtr target, bool withDelay)
         {
+            return MakeEntryMenu(db, pe, target, withDelay, false);
+        }
+
+        private ToolStripMenuItem MakeEntryMenu(PwDatabase db, PwEntry pe,
+            IntPtr target, bool withDelay, bool forcePath)
+        {
             string title = pe.Strings.ReadSafe(PwDefs.TitleField);
             string user = pe.Strings.ReadSafe(PwDefs.UserNameField);
             string url = pe.Strings.ReadSafe(PwDefs.UrlField);
             string label = string.IsNullOrEmpty(title) ? "(no title)" : title;
 
-            if (GetSettings().ShowFullPath && pe.ParentGroup != null)
+            if ((forcePath || GetSettings().ShowFullPath) && pe.ParentGroup != null)
             {
                 string gp = GroupPath(pe.ParentGroup);
                 if (!string.IsNullOrEmpty(gp)) label = label + "  (" + gp + ")";
