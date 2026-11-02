@@ -29,6 +29,13 @@ namespace RdpAutoType
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         private static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder s, int max);
 
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, string lParam);
+
+        // Cue banner (placeholder gri) pe un edit control. wParam=1 => ramane
+        // vizibil si cand are focus.
+        private const int EM_SETCUEBANNER = 0x1501;
+
         /// <summary>Cate rezultate maxim afisate in cautare (ca sa nu umple ecranul).</summary>
         private const int SearchResultCap = 50;
 
@@ -120,7 +127,14 @@ namespace RdpAutoType
                 {
                     menu.BeginInvoke((MethodInvoker)delegate
                     {
-                        try { search.Focus(); search.TextBox.Focus(); } catch { }
+                        try
+                        {
+                            search.Focus();
+                            search.TextBox.Focus();
+                            SendMessage(search.TextBox.Handle, EM_SETCUEBANNER,
+                                (IntPtr)1, "Search entries...");
+                        }
+                        catch { }
                     });
                 }
                 catch { }
