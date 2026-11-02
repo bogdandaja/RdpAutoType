@@ -71,7 +71,7 @@ namespace RdpAutoType
             search.BorderStyle = BorderStyle.FixedSingle;
             try { search.BackColor = m_menuBack; search.ForeColor = m_menuFore; }
             catch { }
-            try { search.TextBox.PlaceholderText = "Search entries..."; } catch { }
+            search.ToolTipText = "Search entries...";
             menu.Items.Add(search);
             menu.Items.Add(new ToolStripSeparator());
 
