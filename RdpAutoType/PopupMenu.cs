@@ -264,15 +264,15 @@ namespace RdpAutoType
             return true;
         }
 
-        /// <summary>Textul cautabil al unei intrari: titlu + user + URL + calea grupului.</summary>
+        /// <summary>Textul cautabil al unei intrari: doar titlu + user + URL.
+        /// NU include calea grupului - altfel cautarea dupa numele unui folder ar
+        /// returna toate intrarile din el.</summary>
         private static string SearchText(PwEntry pe)
         {
             string title = pe.Strings.ReadSafe(PwDefs.TitleField);
             string user = pe.Strings.ReadSafe(PwDefs.UserNameField);
             string url = pe.Strings.ReadSafe(PwDefs.UrlField);
-            string grp = (pe.ParentGroup != null) ? GroupPath(pe.ParentGroup) : "";
-            return ((title ?? "") + "\n" + (user ?? "") + "\n" +
-                    (url ?? "") + "\n" + (grp ?? "")).ToLowerInvariant();
+            return ((title ?? "") + "\n" + (user ?? "") + "\n" + (url ?? "")).ToLowerInvariant();
         }
 
         /// <summary>Tasteaza direct login-ul celei mai recente intrari (fara meniu).</summary>

@@ -42,8 +42,8 @@ Cursor popup menu with per‑entry fields:
 - **Cursor popup menu**: Recent entries, groups as submenus,
   KeePass icons, and per‑entry field list + Login.
 - **Live search** in the popup: type in the search box to filter the whole
-  database by title, username, URL and group path; each result shows its
-  group, and `Down` / `Enter` / `Esc` drive it from the keyboard.
+  database by title, username and URL (not the group name); each result still
+  shows its group, and `Down` / `Enter` / `Esc` drive it from the keyboard.
 - **Activators**:
   - Global hotkey (default `Ctrl+Alt+Space`).
   - Mouse activator — left/middle/right button, optional `Ctrl/Shift/Alt`,

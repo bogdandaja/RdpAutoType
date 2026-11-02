@@ -8,9 +8,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 - Live **search box** at the top of the cursor popup menu. Typing filters the
-  whole database by title, username, URL and group path (all terms must match)
-  and shows a flat result list, each with its usual Login / field actions.
-  Results include the group path to disambiguate similar names; `Down`,
+  whole database by title, username and URL (all terms must match; the group
+  name is deliberately not matched) and shows a flat result list, each with its
+  usual Login / field actions. Results still show the group path to
+  disambiguate similar names; `Down`,
   `Enter` and `Esc` work from the box. An empty query restores the normal
   Recent + groups view.
 
