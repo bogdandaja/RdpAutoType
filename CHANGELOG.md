@@ -4,6 +4,17 @@ All notable changes to RdpAutoType are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.1.3] - 2026-11-19
+
+### Fixed
+- **Field references are now resolved before typing.** Username, password and
+  custom-field values are run through KeePass's own placeholder engine
+  (`SprEngine`) with the entry and database as context, so a value like
+  `{REF:P@I:<UUID>}` types the referenced entry's real password instead of the
+  literal reference text. The same path also resolves other KeePass
+  placeholders (`{S:Field}`, environment variables, etc.). Menu labels still
+  show the raw stored value; resolution happens only when a field is typed.
+
 ## [0.1.2] - 2026-11-02
 
 ### Added

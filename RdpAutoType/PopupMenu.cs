@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 using KeePass.Plugins;
+using KeePass.Util.Spr;
 using KeePassLib;
 using KeePassLib.Security;
 
@@ -723,8 +724,9 @@ namespace RdpAutoType
             Settings s = GetSettings();
             Touch(pe);
 
+            PwDatabase db = (m_host != null) ? m_host.Database : null;
             List<SeqElement> elems = BuildSequence(pe, s);
-            RunTyping(target, withDelay, s, delegate { RunElements(pe, elems, s); });
+            RunTyping(target, withDelay, s, delegate { RunElements(pe, elems, s, db); });
         }
 
         /// <summary>Secventa de rulat: cea salvata pe intrare (Login Script),
@@ -754,7 +756,7 @@ namespace RdpAutoType
             catch { return null; }
         }
 
-        private static void RunElements(PwEntry pe, List<SeqElement> elems, Settings s)
+        private static void RunElements(PwEntry pe, List<SeqElement> elems, Settings s, PwDatabase db)
         {
             foreach (SeqElement e in elems)
             {
@@ -765,7 +767,7 @@ namespace RdpAutoType
                             ScanCodeTyper.Type(e.Text, s.PerCharDelayMs);
                         break;
                     case SeqKind.Field:
-                        string v = ResolveField(pe, e.FieldToken);
+                        string v = ResolveField(pe, e.FieldToken, db);
                         if (!string.IsNullOrEmpty(v))
                             ScanCodeTyper.Type(v, s.PerCharDelayMs);
                         break;
@@ -784,22 +786,42 @@ namespace RdpAutoType
             }
         }
 
-        private static string ResolveField(PwEntry pe, string token)
+        private static string ResolveField(PwEntry pe, string token, PwDatabase db)
         {
             if (string.IsNullOrEmpty(token)) return "";
             string up = token.ToUpperInvariant();
-            if (up == "USERNAME") return pe.Strings.ReadSafe(PwDefs.UserNameField);
-            if (up == "PASSWORD") return pe.Strings.ReadSafe(PwDefs.PasswordField);
-            if (up == "URL") return pe.Strings.ReadSafe(PwDefs.UrlField);
-            if (up == "TITLE") return pe.Strings.ReadSafe(PwDefs.TitleField);
-            if (up == "NOTES") return pe.Strings.ReadSafe(PwDefs.NotesField);
-            if (up.StartsWith("S:")) return pe.Strings.ReadSafe(token.Substring(2));
-            return "";
+            string raw;
+            if (up == "USERNAME") raw = pe.Strings.ReadSafe(PwDefs.UserNameField);
+            else if (up == "PASSWORD") raw = pe.Strings.ReadSafe(PwDefs.PasswordField);
+            else if (up == "URL") raw = pe.Strings.ReadSafe(PwDefs.UrlField);
+            else if (up == "TITLE") raw = pe.Strings.ReadSafe(PwDefs.TitleField);
+            else if (up == "NOTES") raw = pe.Strings.ReadSafe(PwDefs.NotesField);
+            else if (up.StartsWith("S:")) raw = pe.Strings.ReadSafe(token.Substring(2));
+            else raw = "";
+            return Deref(raw, pe, db);
+        }
+
+        /// <summary>Rezolva referintele de camp ({REF:...}) si celelalte
+        /// placeholdere prin motorul KeePass (SprEngine), exact ca la copy/autotype:
+        /// asa valoarea reala e tastata, nu textul referintei. Daca valoarea nu
+        /// contine '{', e returnata neschimbata.</summary>
+        private static string Deref(string value, PwEntry pe, PwDatabase db)
+        {
+            if (string.IsNullOrEmpty(value) || value.IndexOf('{') < 0) return value;
+            if (pe == null || db == null) return value;
+            try
+            {
+                SprContext ctx = new SprContext(pe, db, SprCompileFlags.All);
+                string outp = SprEngine.Compile(value, ctx);
+                return (outp != null) ? outp : value;
+            }
+            catch { return value; }
         }
 
         private void TypeField(string field, PwEntry pe, IntPtr target, bool withDelay)
         {
-            string val = pe.Strings.ReadSafe(field);
+            PwDatabase db = (m_host != null) ? m_host.Database : null;
+            string val = Deref(pe.Strings.ReadSafe(field), pe, db);
             Settings s = GetSettings();
             Touch(pe);
 
