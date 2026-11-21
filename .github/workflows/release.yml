@@ -1,6 +1,6 @@
 name: Release
 
-# Build pe un tag vX.Y.Z si ataseaza RdpAutoType.dll la release.
+# Build on a version tag and publish verifiable distribution artifacts.
 on:
   push:
     tags:
@@ -8,6 +8,8 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   build:
@@ -28,8 +30,36 @@ jobs:
           /p:Configuration=Release
           /p:KeePassExe="C:\Program Files\KeePass Password Safe 2\KeePass.exe"
 
-      - name: Publish release with the DLL
+      - name: Package ZIP and checksums
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item 'RdpAutoType/bin/Release/RdpAutoType.dll' 'dist/RdpAutoType.dll'
+          Compress-Archive -LiteralPath 'dist/RdpAutoType.dll' -DestinationPath 'dist/RdpAutoType.zip' -CompressionLevel Optimal
+          @('RdpAutoType.dll', 'RdpAutoType.zip') | ForEach-Object {
+            $hash = (Get-FileHash -LiteralPath (Join-Path 'dist' $_) -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $_"
+          } | Set-Content -LiteralPath 'dist/SHA256SUMS.txt' -Encoding ascii
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            dist/RdpAutoType.dll
+            dist/RdpAutoType.zip
+
+      - name: Publish release assets
         uses: softprops/action-gh-release@v2
         with:
-          files: RdpAutoType/bin/Release/RdpAutoType.dll
+          files: |
+            dist/RdpAutoType.zip
+            dist/RdpAutoType.dll
+            dist/SHA256SUMS.txt
           generate_release_notes: true
+          body: |
+            **Recommended download:** RdpAutoType.zip (contains the KeePass plugin DLL).
+            Verify its SHA-256 against SHA256SUMS.txt before installing.
+            Build provenance can be verified with the GitHub CLI:
+            `gh attestation verify RdpAutoType.zip --repo ${{ github.repository }}`
+            Browser security checks may still show warnings for newly published files.
