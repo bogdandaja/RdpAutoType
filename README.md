@@ -68,13 +68,21 @@ Cursor popup menu with per‑entry fields:
 
 ## Install
 
-1. Download `RdpAutoType.dll` from the [Releases](../../releases) page.
-2. Copy it into your KeePass `Plugins` folder, e.g.
-   `C:\Program Files\KeePass Password Safe 2\Plugins\`.
-3. **Unblock** the file (Windows marks files from other machines):
-   right‑click → *Properties* → *Unblock*, or
-   `Unblock-File "...\Plugins\RdpAutoType.dll"` in PowerShell.
-4. Restart KeePass. Verify under *Tools → Plugins*.
+1. Download **RdpAutoType.zip** from the [Releases](../../releases) page (recommended). The raw DLL remains available.
+2. Download `SHA256SUMS.txt` from the same release, run `(Get-FileHash .\RdpAutoType.zip -Algorithm SHA256).Hash` in PowerShell, and compare the result with the `RdpAutoType.zip` line in the checksum file.
+3. Extract `RdpAutoType.dll` and copy it into your KeePass `Plugins` folder (for example `C:\Program Files\KeePass Password Safe 2\Plugins\`).
+4. If Windows blocks the DLL, check its origin and verification results before selecting *Properties → Unblock* or running `Unblock-File` on the DLL.
+5. Restart KeePass and verify under *Tools → Plugins*.
+
+### Release verification
+
+New releases include SHA-256 checksums and GitHub build provenance attestation. After downloading the ZIP, verify the attestation with the GitHub CLI:
+
+```powershell
+gh attestation verify .\RdpAutoType.zip --repo bogdandaja/RdpAutoType
+```
+
+Attestation confirms the workflow responsible for producing the artifact; it does not prove the plugin is malware-free. Browsers may still warn about unfamiliar files. Do not disable browser security protections.
 
 > Login scripts are stored inside your `.kdbx` database, so they travel with it.
 > Plugin settings are stored in KeePass's local config, per machine.
